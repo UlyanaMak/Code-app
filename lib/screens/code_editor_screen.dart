@@ -21,70 +21,91 @@ class Program
 
   final double _fontSize = 14;
   final double _lineHeight = 24;
+  final ScrollController _verticalScrollController = ScrollController();
 
   @override
   Widget build(BuildContext context) {
-    final lines = _codeController.text.split('\n');
-    
+
     return Scaffold(
       backgroundColor: Color(0xFFF9F9F9),
-      body: SingleChildScrollView(
-        //вертикальный скроллинг для нумерации строк и кода
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            //нумерация строк
-            Container(
-              width: 40,
-              color: Color(0xFFF9F9F9),
-              child: Column(
-                children: List.generate(
-                  lines.length,
-                  (index) => Container(
-                    height: 24,
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${index + 1}',
-                      style: TextStyle(
-                        color: const Color(0xFF000000),
-                        fontFamily: 'Courier New',
-                        fontSize: _fontSize, // размер шрифта
-                        height: _lineHeight/_fontSize, // высота строки
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+      body: Scrollbar(
+        controller: _verticalScrollController,
+        child: SingleChildScrollView(
+          controller: _verticalScrollController,
+          scrollDirection: Axis.vertical,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildNumbers(),
 
-            //область кода с горизонтальным скроллом
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Container(
-                  width: 800, // фиксированная ширина для скролла
-                  color: Color(0xFFF9F9F9),
-                  padding: const EdgeInsets.only(left: 8),
-                  child: TextField(
-                    controller: _codeController,
-                    maxLines: null,
-                    style: TextStyle(
-                      fontFamily: 'Courier New',
-                      fontSize: _fontSize, // размер шрифта
-                      height: _lineHeight/_fontSize, // высота строки
-                    ),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,  //это убрало ненужные отступы у строк кода и они соответствуют нумерации
-                    ),
-                    onChanged: (text) => setState(() {}),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Container(
+                    width: 800,
+                    padding: const EdgeInsets.only(left: 8),
+                    child: _buildCodeEditor(),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Widget _buildNumbers() {
+    final lines = _codeController.text.split('\n');
+    
+    return Container(
+      width: 40,
+      color: const Color(0xFFF0F0F0),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        children: List.generate(
+          lines.length,
+          (index) => Container(
+            //высота по умолчанию
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 8),
+            child: Text(
+              '${index + 1}',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontFamily: 'Courier New',
+                fontSize: _fontSize,
+                height: _lineHeight / _fontSize,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCodeEditor() {
+    return TextField(
+      controller: _codeController,
+      maxLines: null,
+      style: TextStyle(
+        fontFamily: 'Courier New',
+        fontSize: _fontSize,
+        height: _lineHeight / _fontSize,
+      ),
+      decoration: const InputDecoration(
+        border: InputBorder.none,
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(vertical: 8),
+      ),
+      onChanged: (text) => setState(() {}),
+    );
+  }
+
+  @override
+  void dispose() {
+    _verticalScrollController.dispose();
+    _codeController.dispose();
+    super.dispose();
   }
 }
