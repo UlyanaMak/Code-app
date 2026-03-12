@@ -1,4 +1,97 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_highlighting/flutter_highlighting.dart';
+import 'package:flutter_highlighting/themes/github.dart';
+import 'package:highlighting/languages/csharp.dart';
+import 'package:highlighting/highlighting.dart' as highlight_lib;
+
+class HighlightingCSharpController extends TextEditingController {
+  final Map<String, TextStyle> theme;
+  late final highlight_lib.HighlightV2 _highlighter;
+  String? _lastText;
+  TextSpan? _lastResult;
+
+  HighlightingCSharpController({
+    this.theme = githubTheme,
+    String? text,
+  }): super(text: text ?? '') {
+    _highlighter = highlight_lib.HighlightV2();
+  }
+
+  @override
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    bool? withComposing,
+  }) {
+    final currentText = text;
+    
+    // Если текст не изменился, возвращаем кэшированный результат
+    if (_lastText == currentText && _lastResult != null) {
+      return _lastResult!;
+    }
+    
+    if (currentText.isEmpty) {
+      return TextSpan(style: style, text: '');
+    }
+
+    try {
+      // Парсим код с подсветкой синтаксиса C#
+      final result = _highlighter.parse(
+        currentText,
+        languageId: csharp.id, // Используем идентификатор C# из библиотеки
+      );
+
+      // Строим дерево TextSpan
+      final spans = _buildSpans(
+        nodes: result.nodes,
+        theme: theme,
+        defaultStyle: style,
+      );
+
+      final textSpan = TextSpan(children: spans, style: style);
+      
+      // Кэшируем результат
+      _lastText = currentText;
+      _lastResult = textSpan;
+      
+      return textSpan;
+    } catch (e) {
+      // В случае ошибки показываем обычный текст
+      return TextSpan(style: style, text: currentText);
+    }
+  }
+
+  List<TextSpan> _buildSpans({
+    required List<highlight_lib.Node>? nodes,  //обязательно с highlight из пакета
+    required Map<String, TextStyle> theme,
+    required TextStyle? defaultStyle,
+  }) {
+    if (nodes == null) return [];
+    
+    return nodes.map((node) {
+      // Получаем стиль для текущего класса узла
+      final nodeStyle = node.className != null && theme.containsKey(node.className)
+          ? theme[node.className]
+          : defaultStyle;
+      
+      // Рекурсивно обрабатываем дочерние узлы
+      final children = node.children != null && node.children!.isNotEmpty
+          ? _buildSpans(nodes: node.children, theme: theme, defaultStyle: nodeStyle)
+          : null;
+      
+      return TextSpan(
+        text: node.value,
+        style: nodeStyle,
+        children: children,
+      );
+    }).toList();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+}
 
 class CodeEditorScreen extends StatefulWidget {
   const CodeEditorScreen({super.key});
@@ -8,7 +101,22 @@ class CodeEditorScreen extends StatefulWidget {
 }
 
 class _CodeEditorScreenState extends State<CodeEditorScreen> {
-  final TextEditingController _codeController = TextEditingController(
+  
+  
+  //подсветка текста
+  late final HighlightingCSharpController _codeController;
+
+  
+
+  final double _fontSize = 14;
+  final double _lineHeight = 24;
+  final ScrollController _verticalScrollController = ScrollController();
+
+
+  @override
+  void initState() {
+    super.initState();
+    _codeController = HighlightingCSharpController(
     text: '''using System;
 class Program
 {
@@ -19,9 +127,12 @@ class Program
 }''',
   );
 
-  final double _fontSize = 14;
-  final double _lineHeight = 24;
-  final ScrollController _verticalScrollController = ScrollController();
+  _codeController.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    setState(() {}); // Обновляем UI при изменении текста
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +209,7 @@ class Program
         isDense: true,
         contentPadding: EdgeInsets.symmetric(vertical: 8),
       ),
-      onChanged: (text) => setState(() {}),
+      //onChange убрано
     );
   }
 
@@ -106,6 +217,7 @@ class Program
   void dispose() {
     _verticalScrollController.dispose();
     _codeController.dispose();
+    _codeController.removeListener(_onTextChanged);
     super.dispose();
   }
 }
