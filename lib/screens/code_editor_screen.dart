@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_highlighting/flutter_highlighting.dart';
-import 'package:flutter_highlighting/themes/github.dart';
+// import 'package:flutter_highlighting/flutter_highlighting.dart';
+// import 'package:flutter_highlighting/themes/github.dart';
 import 'package:flutter_highlighting/themes/vs.dart';
 import 'package:highlighting/languages/csharp.dart';
-import 'package:highlighting/highlighting.dart' as highlight_lib;
+import 'package:highlighting/highlighting.dart';
 
 class HighlightingCSharpController extends TextEditingController {
   final Map<String, TextStyle> theme;
-  late final highlight_lib.HighlightV2 _highlighter;
+  //late final highlight_lib.HighlightV2 _highlighter;
   String? _lastText;
   TextSpan? _lastResult;
 
   HighlightingCSharpController({
     this.theme = vsTheme,  //тема для поддержки подсветки
     String? text,
-  }): super(text: text ?? '') {
-    _highlighter = highlight_lib.HighlightV2();
-  }
+  }): super(text: text ?? '');
 
   @override
   TextSpan buildTextSpan({
@@ -37,7 +35,7 @@ class HighlightingCSharpController extends TextEditingController {
 
     try {
       // Парсим код с подсветкой синтаксиса C#
-      final result = _highlighter.parse(
+      final result = highlight.parse(
         currentText,
         languageId: csharp.id, // Используем идентификатор C# из библиотеки
       );
@@ -63,7 +61,7 @@ class HighlightingCSharpController extends TextEditingController {
   }
 
   List<TextSpan> _buildSpans({
-    required List<highlight_lib.Node>? nodes,  //обязательно с highlight из пакета
+    required List<Node>? nodes,  //обязательно с highlight из пакета
     required Map<String, TextStyle> theme,
     required TextStyle? defaultStyle,
   }) {
