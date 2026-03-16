@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_highlighting/flutter_highlighting.dart';
 import 'package:flutter_highlighting/themes/github.dart';
+import 'package:flutter_highlighting/themes/vs.dart';
 import 'package:highlighting/languages/csharp.dart';
 import 'package:highlighting/highlighting.dart' as highlight_lib;
 
@@ -11,7 +12,7 @@ class HighlightingCSharpController extends TextEditingController {
   TextSpan? _lastResult;
 
   HighlightingCSharpController({
-    this.theme = githubTheme,
+    this.theme = vsTheme,  //тема для поддержки подсветки
     String? text,
   }): super(text: text ?? '') {
     _highlighter = highlight_lib.HighlightV2();
