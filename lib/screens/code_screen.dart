@@ -29,19 +29,19 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
       return 'Нет задания для этой лабораторной работы';
     }
     
-    // Сначала ищем task
+    //поиск task
     final taskSection = sections.firstWhere(
       (section) => section.kind == 'task',
       orElse: () => throw Exception('No task'), // временное исключение
     );
     
-    // Если не нашли task, ищем goal или theory
+    //поиск goal или theory
     final fallbackSection = sections.firstWhere(
       (section) => section.kind == 'goal' || section.kind == 'theory',
       orElse: () => throw Exception('No fallback'), // временное исключение
     );
     
-    // Пытаемся получить текст
+    //получение текста
     try {
       return taskSection.contentMd;
     } catch (e) {
@@ -53,7 +53,6 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
     }
   }
   
-  // 2. ИНИЦИАЛИЗИРУЕМ
   @override
   void initState() {
     super.initState();
@@ -64,7 +63,6 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
     );
   }
   
-  // 3. ОЧИЩАЕМ
   @override
   void dispose() {
     _tabController.dispose();
@@ -157,8 +155,7 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildTaskTab(),
-          //Center(child: Text('Задание')),  //!!!!!!!!!!!сделать вывод
+          _buildTaskTab(), //вывод текста задания
           const CodeEditorScreen(),
         ],
       ),     
@@ -174,7 +171,7 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Информация о лабораторной работе
+            //информация о лабораторной работе
             Container(
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 16),

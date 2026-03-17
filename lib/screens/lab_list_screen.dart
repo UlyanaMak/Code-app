@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import '../services/service_locator.dart';
 import '../models/lab.dart';
-import 'code_screen.dart'; // ← сразу на CodeScreen
+import 'code_screen.dart'; //CodeScreen
 
 class LabsListScreen extends StatefulWidget {
   const LabsListScreen({super.key});
@@ -25,10 +25,51 @@ class _LabsListScreenState extends State<LabsListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Лабораторные работы'),
-        elevation: 2,
+      backgroundColor: Color(0xFFF9F9F9),
+      
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70), 
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+          ),
+
+          child: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    //кнопка назад
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF334EAC)),
+                      onPressed: () {
+                        Navigator.pop(context); //возврат на предыдущий экран
+                      },
+                    ),
+                    const SizedBox(width: 8),
+
+                    //название работы
+                    Expanded(
+                      child: Text(
+                        'Лабораторные работы',
+                        style: const TextStyle(
+                          color: Color(0xFF334EAC),
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+            )
+          ),
+        ),
       ),
+
+
       body: FutureBuilder<List<Lab>>(
         future: _labsFuture,
         builder: (context, snapshot) {
