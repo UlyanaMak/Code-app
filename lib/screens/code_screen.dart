@@ -53,6 +53,7 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
     }
   }
   
+  //инициализация
   @override
   void initState() {
     super.initState();
