@@ -1,14 +1,18 @@
 import 'package:course_project_code_app/screens/code_editor_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import '../models/lab.dart';
 
 class CodeScreen extends StatefulWidget {
   final String lessonTitle;
   final String lessonNumber;
+  final Lab fullLab; //ТЗ работы
   
   const CodeScreen({
     super.key, 
     required this.lessonTitle,
     required this.lessonNumber,
+    required this.fullLab,
   });
 
   @override
@@ -17,6 +21,37 @@ class CodeScreen extends StatefulWidget {
 
 class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateMixin{
   late TabController _tabController;
+
+  String get _taskText {
+    final sections = widget.fullLab.sections ?? [];
+    
+    if (sections.isEmpty) {
+      return 'Нет задания для этой лабораторной работы';
+    }
+    
+    // Сначала ищем task
+    final taskSection = sections.firstWhere(
+      (section) => section.kind == 'task',
+      orElse: () => throw Exception('No task'), // временное исключение
+    );
+    
+    // Если не нашли task, ищем goal или theory
+    final fallbackSection = sections.firstWhere(
+      (section) => section.kind == 'goal' || section.kind == 'theory',
+      orElse: () => throw Exception('No fallback'), // временное исключение
+    );
+    
+    // Пытаемся получить текст
+    try {
+      return taskSection.contentMd;
+    } catch (e) {
+      try {
+        return fallbackSection.contentMd;
+      } catch (e) {
+        return sections.first.contentMd;
+      }
+    }
+  }
   
   // 2. ИНИЦИАЛИЗИРУЕМ
   @override
@@ -121,15 +156,100 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
 
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          Center(child: Text('Задание')),  //!!!!!!!!!!!сделать вывод
-          CodeEditorScreen(),
+        children: [
+          _buildTaskTab(),
+          //Center(child: Text('Задание')),  //!!!!!!!!!!!сделать вывод
+          const CodeEditorScreen(),
         ],
+      ),     
+
+    );
+  }
+
+  Widget _buildTaskTab() {
+    return Container(
+      color: Colors.white,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Информация о лабораторной работе
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6E97EC).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Color(0xFF334EAC)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      children: widget.fullLab.tags.map((tag) {
+                        return Chip(
+                          label: Text('#$tag'),
+                          backgroundColor: Colors.white,
+                          labelStyle: const TextStyle(fontSize: 12),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Заголовок
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6E97EC).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFF6E97EC).withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.assignment, color: const Color(0xFF334EAC)),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Задание',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF334EAC),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Текст задания
+            MarkdownBody(
+              data: _taskText,
+              styleSheet: MarkdownStyleSheet(
+                h1: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                h2: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                h3: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                p: const TextStyle(fontSize: 16, height: 1.5),
+                code: const TextStyle(
+                  fontFamily: 'monospace',
+                  backgroundColor: Color(0xFFF5F5F5),
+                ),
+                codeblockPadding: const EdgeInsets.all(12),
+                listIndent: 24,
+              ),
+            ),
+          ],
+        ),
       ),
-
-
-      
-
     );
   }
 }

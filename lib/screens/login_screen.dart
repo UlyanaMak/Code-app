@@ -1,6 +1,6 @@
 import 'package:course_project_code_app/screens/code_screen.dart';
 import 'package:flutter/material.dart';
-
+import '../screens/lab_list_screen.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -105,10 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: () {
                     Navigator.push(
                       context, 
-                      MaterialPageRoute(builder: (context) => CodeScreen(
-                        lessonNumber: '1',
-                        lessonTitle: 'Введение в C#',
-                      )),
+                      MaterialPageRoute(builder: (context) => LabsListScreen()),  //заменём 1 экран
                     );
                   },
 
