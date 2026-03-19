@@ -1,12 +1,14 @@
 import 'package:course_project_code_app/screens/code_editor_screen.dart';
+import 'package:course_project_code_app/screens/code_console_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/lab.dart';
+import '../services/cloud_executor_service.dart';
 
 class CodeScreen extends StatefulWidget {
   final String lessonTitle;
   final String lessonNumber;
-  final Lab fullLab; //ТЗ работы
+  final Lab fullLab;
   
   const CodeScreen({
     super.key, 
@@ -16,95 +18,175 @@ class CodeScreen extends StatefulWidget {
   });
 
   @override
-  State<CodeScreen> createState() => _CodeStateScreen();
+  State<CodeScreen> createState() => _CodeScreenState();
 }
 
-class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateMixin{
+class _CodeScreenState extends State<CodeScreen> with TickerProviderStateMixin {
+  // Сервис для выполнения кода
+  final CloudExecutorService _executor = CloudExecutorService();
+  
+  // Данные для вкладок
+  String _code = '';              // Код из редактора
+  String _consoleOutput = '';     // Вывод консоли
+  String _currentInput = '';      // Текущий ввод (для отправки)
+  bool _isAwaitingInput = false;  // Флаг ожидания ввода
+  bool _isExecuting = false;      // Флаг выполнения
+  
+  // Всегда существующие вкладки (теперь 3 фиксированные)
+  final List<TabType> _fixedTabs = const [
+    TabType.task, 
+    TabType.code, 
+    TabType.console
+  ];
+  
+  // TabController - теперь с фиксированным количеством вкладок
   late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(
+      length: _fixedTabs.length,
+      vsync: this,
+      initialIndex: 0, //начинать с вкладки задания
+    );
+  }
 
   String get _taskText {
     final sections = widget.fullLab.sections ?? [];
+    if (sections.isEmpty) return 'Нет задания для этой лабораторной работы';
     
-    if (sections.isEmpty) {
-      return 'Нет задания для этой лабораторной работы';
-    }
-    
-    //поиск task
-    final taskSection = sections.firstWhere(
-      (section) => section.kind == 'task',
-      orElse: () => throw Exception('No task'), // временное исключение
-    );
-    
-    //поиск goal или theory
-    final fallbackSection = sections.firstWhere(
-      (section) => section.kind == 'goal' || section.kind == 'theory',
-      orElse: () => throw Exception('No fallback'), // временное исключение
-    );
-    
-    //получение текста
     try {
+      final taskSection = sections.firstWhere((s) => s.kind == 'task');
       return taskSection.contentMd;
     } catch (e) {
       try {
-        return fallbackSection.contentMd;
+        final fallback = sections.firstWhere((s) => s.kind == 'goal' || s.kind == 'theory');
+        return fallback.contentMd;
       } catch (e) {
         return sections.first.contentMd;
       }
     }
   }
-  
-  //инициализация
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(
-      length: 2,
-      vsync: this,
-      initialIndex: 0,
-    );
-  }
-  
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+
+  /// Получить заголовок вкладки по типу
+  String _getTabTitle(TabType type) {
+    switch (type) {
+      case TabType.task:
+        return 'Задание';
+      case TabType.code:
+        return 'Код';
+      case TabType.console:
+        return 'Консоль';
+    }
   }
 
+  /// Выполнение кода
+  Future<void> _executeCode(String code) async {
+  if (_isExecuting) return;
 
+  // ОЧИЩАЕМ консоль перед новым выполнением
+  setState(() {
+    _code = code;
+    _isExecuting = true;
+    _consoleOutput = '';  // ← ВАЖНО: очищаем перед новым запуском!
+    _currentInput = '';
+  });
 
+  // Добавляем сообщение о начале выполнения
+  setState(() {
+    _consoleOutput += '> Выполнение кода...\n';
+  });
+
+  // Переключаемся на консоль
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (mounted) {
+      _tabController.animateTo(2);
+    }
+  });
+
+  try {
+    // Проверяем, нужен ли ввод
+    final needsInput = code.contains('ReadLine') || code.contains('Console.ReadLine');
+
+    if (needsInput && _currentInput.isEmpty) {
+      setState(() {
+        _isAwaitingInput = true;
+        _consoleOutput += '⏳ Программа ожидает ввод...\n';
+        _isExecuting = false;
+      });
+      return;
+    }
+
+    // Выполняем код
+    String result;
+    if (needsInput && _currentInput.isNotEmpty) {
+      result = await _executor.executeCode(code, input: _currentInput);
+      setState(() {
+        _consoleOutput += '> $_currentInput\n';
+      });
+    } else {
+      result = await _executor.executeCode(code);
+    }
+
+    if (mounted) {
+      setState(() {
+        _consoleOutput += result;
+        _isExecuting = false;
+        _isAwaitingInput = false;
+        _currentInput = '';
+      });
+    }
+  } catch (e) {
+    if (mounted) {
+      setState(() {
+        _consoleOutput += '❌ Ошибка: $e\n';
+        _isExecuting = false;
+        _isAwaitingInput = false;
+      });
+    }
+  }
+}
+
+  /// Обработка ввода из консоли
+  void _onInputSubmitted(String input) {
+  if (!_isAwaitingInput) return;
   
+  setState(() {
+    _currentInput = input;
+    _isAwaitingInput = false;
+    _consoleOutput += '> $input\n';
+  });
+}
+
+  /// Очистка консоли
+  void _clearConsole() {
+    setState(() {
+      _consoleOutput = '';
+    });
+  }
+
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFF9F9F9),
+      backgroundColor: const Color(0xFFF9F9F9),
       
-
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(120), //высота
+        preferredSize: const Size.fromHeight(120),
         child: Container(
-
-          decoration: BoxDecoration(
-            color: Colors.white,
-          ),
-
+          decoration: const BoxDecoration(color: Colors.white),
           child: SafeArea(
             child: Column(
               children: [
-                // Верхняя строка с кнопкой назад и названием
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   child: Row(
                     children: [
-                      //кнопка назад
                       IconButton(
                         icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF334EAC)),
-                        onPressed: () {
-                          Navigator.pop(context); //возврат на предыдущий экран
-                        },
+                        onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 8),
-                      
-                      //название работы
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,15 +198,18 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
                                 fontSize: 14,
                               ),
                             ),
-                            Text(
-                              widget.lessonTitle,
-                              style: const TextStyle(
-                                color: Color(0xFF334EAC),
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                            Tooltip(
+                              message: _cleanLessonTitle,  // полный текст
+                              child: Text(
+                                _cleanLessonTitle,
+                                style: const TextStyle(
+                                  color: Color(0xFF334EAC),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
@@ -138,14 +223,11 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
                 TabBar(
                   controller: _tabController,
                   labelColor: const Color(0xFF6E97EC),
-                  labelStyle: TextStyle(fontSize: 18),
+                  labelStyle: const TextStyle(fontSize: 18),
                   unselectedLabelColor: const Color(0xFF334EAC),
                   indicatorColor: const Color(0xFF6E97EC),
                   indicatorSize: TabBarIndicatorSize.label,
-                  tabs: const [
-                    Tab(text: 'Задание'),
-                    Tab(text: 'Код'),
-                  ],
+                  tabs: _fixedTabs.map((type) => Tab(text: _getTabTitle(type))).toList(),
                 ),
               ],
             ),
@@ -156,11 +238,25 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildTaskTab(), //вывод текста задания
-          const CodeEditorScreen(),
+          // Вкладка Задание
+          _buildTaskTab(),
+          
+          // Вкладка Код
+          CodeEditorScreen(
+            onExecute: _executeCode,
+            isExecuting: _isExecuting,
+            initialCode: _code,
+          ),
+          
+          // Вкладка Консоль (единая)
+          CodeConsoleScreen(
+            output: _consoleOutput,
+            onInputSubmitted: _onInputSubmitted,
+            isAwaitingInput: _isAwaitingInput,
+            onClear: _clearConsole,
+          ),
         ],
-      ),     
-
+      ),
     );
   }
 
@@ -172,7 +268,6 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            //информация о лабораторной работе
             Container(
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 16),
@@ -200,16 +295,13 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
               ),
             ),
             
-            // Заголовок
             Container(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
                 color: const Color(0xFF6E97EC).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: const Color(0xFF6E97EC).withOpacity(0.3),
-                ),
+                border: Border.all(color: const Color(0xFF6E97EC).withOpacity(0.3)),
               ),
               child: Row(
                 children: [
@@ -229,7 +321,6 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
             
             const SizedBox(height: 8),
             
-            // Текст задания
             MarkdownBody(
               data: _taskText,
               styleSheet: MarkdownStyleSheet(
@@ -250,4 +341,28 @@ class _CodeStateScreen extends State<CodeScreen> with SingleTickerProviderStateM
       ),
     );
   }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _executor.dispose();
+    super.dispose();
+  }
+
+  String get _cleanLessonTitle {
+    final title = widget.lessonTitle;
+  
+    // Если есть двоеточие, берём всё что после него
+    if (title.contains(':')) {
+      return title.substring(title.indexOf(':') + 1).trim();
+    }
+  
+    // Если двоеточия нет (на всякий случай)
+    return title;
+  }
 }
+
+
+
+/// Типы вкладок
+enum TabType { task, code, console }

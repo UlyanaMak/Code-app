@@ -28,7 +28,7 @@ class _LabsListScreenState extends State<LabsListScreen> {
       backgroundColor: Color(0xFFF9F9F9),
       
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(70), 
+        preferredSize: const Size.fromHeight(65), 
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
